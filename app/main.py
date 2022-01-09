@@ -30,8 +30,8 @@ while True:
 
 
 
-my_posts = [{"title": "title of post 1", "content": "content of post 1", "id": 1},
-{"title": "favorite foods", "content": "I like pizza", "id": 2}] #this contains all the posts saved in the memory and not in a database
+#my_posts = [{"title": "title of post 1", "content": "content of post 1", "id": 1},
+#{"title": "favorite foods", "content": "I like pizza", "id": 2}] #this contains all the posts saved in the memory and not in a database
 
 def find_post(id): #this function finds the post with the id that the user provides
     for p in my_posts:
@@ -51,7 +51,10 @@ def root():
 # Gets all posts
 @app.get("/posts")
 def get_posts():
-    return {"data": my_posts}
+    cursor.execute("""SELECT * FROM posts""")
+    posts = cursor.fetchall()
+    #print(posts)
+    return {"data": posts}
 
 # Creates a new post
 @app.post("/posts", status_code=status.HTTP_201_CREATED) #this is the path to the page we want to see
