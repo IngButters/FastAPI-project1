@@ -51,7 +51,7 @@ def root():
 # Gets all posts
 @app.get("/posts")
 def get_posts():
-    cursor.execute("""SELECT * FROM posts""")
+    cursor.execute("""SELECT * FROM posts;""")
     posts = cursor.fetchall()
     #print(posts)
     return {"data": posts}
@@ -59,17 +59,19 @@ def get_posts():
 # Creates a new post
 @app.post("/posts", status_code=status.HTTP_201_CREATED) #this is the path to the page we want to see
 def create_post(post: Post): #this extracts all of the fields from the body and it puts it into a dictionary
-    post_dict = post.dict() #regular python dictionary
-    post_dict['id'] = randrange(0, 10000000) #this is to make the id random so that it is unique
-    my_posts.append(post_dict) # this adds the post to the list
-    return {"data": post_dict} # this returns the post that was just added
+    cursor.execute("""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * ;""", (post.title, post.content, post.published))
+    new_post = cursor.fetchone()
+
+    conn.commit() # when we add posts we need to commit the changes
+    return {"data": new_post} # this returns the post that was just added
 
 
 # Get an individual post
 @app.get("/posts/{id}") #this is the path to the page we want to see because the user will give us the id {id} is the path parameter
 def get_post(id: int, response: Response): #this is the path parameter
-    
-    post = find_post(id) #this is to find the post with the id that the user provides
+    cursor.execute("""SELECT * FROM posts WHERE id = %s;""", (str(id),))
+    post = cursor.fetchone()
+
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id: {id} was not found") #this is to raise an error if the post is not found
 
@@ -80,11 +82,12 @@ def delete_post(id: int):
     # this is to delete a post
     # 1. Find the index in the array that has required ID
     # 2. my_post.pop(index)
-    index = find_index_post(id)
-    if index == None:
+    cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING * ;""", (str(id),))
+    deleted_post = cursor.fetchone()
+    conn.commit()
+    if deleted_post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id: {id} does not exist")
 
-    my_posts.pop(index)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -92,12 +95,11 @@ def delete_post(id: int):
 @app.put("/posts/{id}")
 def update_post(id:int, post: Post): # Post is for the right schema
     # 1. Find the index in the array that has required ID
-    index = find_index_post(id)
-    if index == None:
+    cursor.execute("""UPDATE posts SET title = %s, content = %s, published = %s WHERE id = %s RETURNING * ;""", (post.title, post.content, post.published, str(id)))
+    updated_post = cursor.fetchone()
+    conn.commit()
+    if updated_post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id: {id} does not exist")
 
-    post_dict = post.dict()
-    post_dict['id'] = id
-    my_posts[index] = post_dict
-    return {"data": post_dict}
+    return {"data": updated_post}
 
